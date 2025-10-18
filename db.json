@@ -1,0 +1,29 @@
+{
+  "personas": [
+    {
+      "id": "1",
+      "nombre": "Arto Hellas",
+      "numero": "040-123456"
+    },
+    {
+      "id": "2",
+      "nombre": "Ada Lovelace",
+      "numero": "39-44-5323523"
+    },
+    {
+      "id": "3",
+      "nombre": "Dan Abramov",
+      "numero": "12-43-234345"
+    },
+    {
+      "id": "4",
+      "nombre": "Mary Poppendieck",
+      "numero": "39-23-6423122"
+    },
+    {
+      "id": "3566",
+      "nombre": "Alberto Martir",
+      "numero": "98-04-025"
+    }
+  ]
+}
