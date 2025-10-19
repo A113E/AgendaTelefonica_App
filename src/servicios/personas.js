@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const baseUrl = 'http://localhost:3001/api/personas'
+const baseUrl = 'api/personas'
 
 // Servicio para obtener las personas
 function obtenerPersonas() {
