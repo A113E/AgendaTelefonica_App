@@ -1,9 +1,21 @@
+require('dotenv').config()
 const express = require('express')
-const app = express()
 const cors = require('cors')
+const Persona = require('./models/persona')
 
-app.use(cors())
-app.use(express.json())
+const app = express()
+
+const manejoErrores = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'ID Malformateado' })
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
+  }
+
+  next(error)
+}
 
 // Middleware que imprime información sobre cada solicitud
 const infoSolicitudes = (request, response, next) => {
@@ -14,75 +26,56 @@ const infoSolicitudes = (request, response, next) => {
   next()
 }
 
-app.use(infoSolicitudes)
-
-
-let personas = [
-    {
-      id: "1",
-      nombre: "Arto Hellas",
-      numero: "040-123456"
-    },
-    {
-      id: "2",
-      nombre: "Ada Lovelace",
-      numero: "39-44-5323523"
-    },
-    {
-      id: "3",
-      nombre: "Dan Abramov",
-      numero: "12-43-234345"
-    },
-    {
-      id: "4",
-      nombre: "Mary Poppendieck",
-      numero: "39-23-6423122"
-    },
-    {
-      id: "3566",
-      nombre: "Alberto Martir",
-      numero: "98-04-025"
-    }
-]
+app.use(express.static('dist'))
+app.use(express.json())
+app.use(cors())
 
 // Rutas
 // Obtener la info de la app
 app.get('/info', (request, response) => {
-    const fecha = new Date().toString()
+  const fecha = new Date().toString()
+  Persona.countDocuments({}).then(cuenta => {
     const html = `
-    <p> La agenda telefónica cuenta con ${personas.length} registros </p>
-    <p> ${fecha} </p>
-    `
+      <h3> La agenda telefonica cuenta con ${cuenta} personas </h3>
+      <p> ${fecha} </p>
+      `
     response.send(html)
+  })
 })
 
 // Obtener las personas
 app.get('/api/personas', (request, response) => {
+  Persona.find({}).then(personas => {
     response.json(personas)
+  })
 })
 
 // Obtener una persona
-app.get('/api/personas/:id', (request, response) => {
-    const id = request.params.id
-    const persona = personas.find(persona => persona.id === id)
-
-    if (persona) {
+app.get('/api/personas/:id', (request, response, next) => {
+  const id = Number(request.params.id)
+  Persona.findById(id)
+    .then(persona => {
+      if (persona) {
         response.json(persona)
-    } else {
-        response.status(400).end()
-    }
+      } else {
+        response.status(404).end()
+      }
+    })
+    .catch(error => next(error))
 })
 
 // Eliminar una persona
-app.delete('/api/personas/:id', (request, response) => {
-  const id = request.params.id
-  personas = personas.filter(p => p.id !== id)
-
-  response.status(204).end()
+app.delete('/api/personas/:id', (request, response, next) => {
+  const id = Number(request.params.id)
+  Persona.findByIdAndDelete(id)
+    .then(() => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
 // Postear una persona
-app.post('/api/personas', (request, response) => {
+app.post('/api/personas', (request, response, next) => {
   const { nombre, numero } = request.body
 
   if (!nombre) {
@@ -93,14 +86,39 @@ app.post('/api/personas', (request, response) => {
     return response.status(400).json({ error: 'Numero es requerido' })
   }
 
-  const persona = {
-    nombre, 
+  const persona = new Persona({
+    nombre,
     numero
-  }
+  })
 
-  personas = personas.concat(persona)
+  persona
+    .save()
+    .then(personaGuardada => {
+      response.json(personaGuardada)
+    })
+    .catch(error => next(error))
+})
 
-  response.json(persona)
+// Actualizar una persona
+app.put('/api/personas/:id', (request, response, next) => {
+  const id = Number(request.params.id)
+  const { nombre, numero } = request.body
+
+  // Encuentra la persona a actualizar por el id
+  Persona.findById(id)
+    .then(persona => {
+      if (!persona) {
+        response.status(404).end()
+      }
+
+      persona.nombre = nombre
+      persona.numero = numero
+
+      return persona.save().then(personaActualizada => {
+        response.json(personaActualizada)
+      })
+    })
+    .catch(error => next(error))
 })
 
 // Middleware para capturar solicitudes a rutas inexistentes
@@ -108,9 +126,11 @@ const rutasInexistentes = (request, response) => {
   response.status(400).send({ error: 'Ruta Inexistente' })
 }
 
+app.use(infoSolicitudes)
 app.use(rutasInexistentes)
+app.use(manejoErrores)
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
